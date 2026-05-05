@@ -1,59 +1,125 @@
-﻿// ПЗ_15_пример_2.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
-//
-
-#include <iostream>
+﻿#include <iostream>
 #include <cmath>
+#include <vector>
+
 using namespace std;
 
-class Point
-{
+const double M_PI = acos(-1.0);
+
+// Абстрактный класс Point (точка на плоскости)
+class Point {
 protected:
-    double x;
-    double y;
-
+    double x, y;
 public:
-    virtual void input() = 0;
+    Point(double x0 = 0, double y0 = 0) : x(x0), y(y0) {}
 
-    virtual double Length() = 0;
+    // Чистая виртуальная функция — длина (расстояние от начала координат)
+    virtual double Length() const = 0;
 
-    double length(Point& other)
-    {
-        return sqrt(pow(other.x - x, 2) + pow(other.y - y, 2));
-    }
+    // Функции доступа к координатам
+    double getX() const { return x; }
+    double getY() const { return y; }
+
+    virtual void draw() const = 0; // для рисования (можно переопределить)
+
+    virtual ~Point() {}
 };
 
-class Circle : public Point
-{
+// Производный класс Circle (окружность)
+class Circle : public Point {
+private:
     double radius;
-
 public:
-    double Length(double a, double b, double c)
-    {
-        double P = (a + b + c) / 2;
-        double S = sqrt(P * (P - a) * (P - b) * (P - c));
-        radius = (a * b * c) / (4 * S);
-        return radius;
+    Circle(double x0 = 0, double y0 = 0, double r = 1.0)
+        : Point(x0, y0), radius(r) {
     }
 
-    void input()
-    {
-        cout << "Введите координаты центра окружности (x, y): ";
-        cin >> x >> y;
+    // Переопределённая длина — длина окружности (или радиус — по желанию)
+    // В условии сказано: "функцию, возвращающую длину соответствующего объекта"
+    // Для окружности логично вернуть длину окружности.
+    double Length() const override {
+        return 2 * M_PI * radius;
+    }
+
+    double getRadius() const { return radius; }
+
+    // Радиус описанной окружности вокруг треугольника, образованного центрами трёх окружностей
+    static double circumscribedRadius(const Circle& c1, const Circle& c2, const Circle& c3) {
+        // Стороны треугольника между центрами
+        double a = hypot(c2.getX() - c3.getX(), c2.getY() - c3.getY());
+        double b = hypot(c1.getX() - c3.getX(), c1.getY() - c3.getY());
+        double c = hypot(c1.getX() - c2.getX(), c1.getY() - c2.getY());
+
+        // Площадь треугольника по формуле Герона
+        double p = (a + b + c) / 2.0;
+        double area = sqrt(p * (p - a) * (p - b) * (p - c));
+
+        if (area == 0) return 0.0; // вырожденный случай
+
+        // Радиус описанной окружности
+        double R = (a * b * c) / (4.0 * area);
+        return R;
+    }
+
+    void draw() const override {
+        cout << "Окружность с центром в (" << x << ", " << y
+            << ") и радиусом " << radius << endl;
     }
 };
 
-int main()
-{
-    Point* triangle = new Circle;
+// Для рисования точек (можно просто выводить координаты)
+class MyPoint : public Point {
+public:
+    MyPoint(double x0 = 0, double y0 = 0) : Point(x0, y0) {}
+
+    double Length() const override {
+        return hypot(x, y); // расстояние от центра координат
+    }
+
+    void draw() const override {
+        cout << "Точка с координатами (" << x << ", " << y << ")" << endl;
+    }
+};
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+
+    // Массив указателей на объекты Point
+    vector<Point*> objects;
+
+    // Несколько точек
+    objects.push_back(new MyPoint(1, 2));
+    objects.push_back(new MyPoint(4, 5));
+    objects.push_back(new MyPoint(-1, 3));
+
+    // 3 окружности
+    Circle c1(0, 0, 3);
+    Circle c2(4, 0, 2);
+    Circle c3(1, 3, 1.5);
+
+    objects.push_back(&c1); // можно хранить и указатели на существующие объекты
+    objects.push_back(&c2);
+    objects.push_back(&c3);
+
+    // Вывод всех объектов
+    cout << "=== Содержимое набора фигур ===\n";
+    for (auto obj : objects) {
+        obj->draw();
+        cout << "Длина (Length) = " << obj->Length() << endl << endl;
+    }
+
+    // Вычисление радиуса описанной окружности вокруг центров трёх окружностей
+    double R = Circle::circumscribedRadius(c1, c2, c3);
+    cout << "\nРадиус окружности, описанной вокруг треугольника, "
+        << "вершинами которого являются центры трёх заданных окружностей: "
+        << R << endl;
+
+    // Освобождение памяти
+    for (auto obj : objects) {
+        // Удаляем только динамические объекты (кроме c1, c2, c3)
+        MyPoint* p = dynamic_cast<MyPoint*>(obj);
+        if (p) delete p;
+    }
+
+    return 0;
 }
-
-// Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
-// Отладка программы: F5 или меню "Отладка" > "Запустить отладку"
-
-// Советы по началу работы 
-//   1. В окне обозревателя решений можно добавлять файлы и управлять ими.
-//   2. В окне Team Explorer можно подключиться к системе управления версиями.
-//   3. В окне "Выходные данные" можно просматривать выходные данные сборки и другие сообщения.
-//   4. В окне "Список ошибок" можно просматривать ошибки.
-//   5. Последовательно выберите пункты меню "Проект" > "Добавить новый элемент", чтобы создать файлы кода, или "Проект" > "Добавить существующий элемент", чтобы добавить в проект существующие файлы кода.
-//   6. Чтобы снова открыть этот проект позже, выберите пункты меню "Файл" > "Открыть" > "Проект" и выберите SLN-файл.
